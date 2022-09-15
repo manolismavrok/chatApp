@@ -1,0 +1,13 @@
+config:
+  target: "ws://localhost:8080"
+  phases:
+    - duration: 30
+      arrivalRate: 334
+      
+scenarios:
+  - engine: ws
+    flow:
+      - loop:
+        - send: "This is a kinda long message to test client failure and server load when dealing with big buffers."
+        - think: 2
+        count: 60

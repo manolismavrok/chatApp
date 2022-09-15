@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+      #messages { padding:5px; background:#ddd; border-radius:5px;
+      overflow-y: auto; border:1px solid #CCC;
+      margin-top:10px; margin-bottom:10px; height: 160px;}
+    </style>
+</head>
+<body>
+
+  <div id="homepage">
+    <form id="info">
+      <div style="margin: 5px;">
+        <label for="myGender">My gender:</label>
+        <select id="myGender" name="myGender" required>
+          <!-- <option value="" disabled selected hidden></option> -->
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+      <div style="margin: 5px;">
+        <label for="myAge">My age:</label>
+        <input id="myAge" name="myAge" type="number" style="width: 35px;" required min="18" max="99">
+      </div>
+      <div style="margin: 5px;">
+        <label for="myCountry">My country:</label>
+        <select id="myCountry" name="myCountry" required>
+          <option value="GR">Greece</option>
+          <option value="FR">France</option>
+          <option value="GE">Germany</option>
+          <option value="IT">Italy</option>
+          <option value="ES">Spain</option>
+          <option value="TR">Turkey</option>
+          <option value="USA">USA</option>
+        </select>
+      </div>
+      <div style="margin-top:20px; margin-left: 5px; margin-bottom: 5px;">
+        <label for="partnerGender">My partner's gender:</label>
+        <select id="partnerGender" name="partnerGender" required>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </div>
+      <div style="margin: 5px;">
+        <label for="partnerAge">My partner's age group:</label>
+        <select id="partnerAge" name="partnerAge" required>
+          <option value="18-24">18-24</option>
+          <option value="25-29">25-29</option>
+          <option value="30-34">30-34</option>
+          <option value="35-39">35-39</option>
+          <option value="40-44">40-44</option>
+          <option value="45-49">45-49</option>
+          <option value="50-60">50-60</option>
+          <option value="60<">60<</option>
+        </select>
+      </div>
+      <input type="submit" value="Chat Now!" style="margin-top: 10px; margin-left: 5px; padding: 5px;"></input>
+    </form>
+  </div>
+
+  <div id="chatRoom" style="display: none;">
+    <h1>Chat now!</h1>
+    <div id="messages"></div>
+    <form id="publish">
+      <div style="display: flex;">
+        <input type="text" id="messageBox" placeholder="Type your message here" style="display: block; width: 100%; margin-bottom: 10px; padding: 10px;" />
+        <input type="submit" value="Send" style="margin-bottom: 10px; margin-left: 5px; padding: 10px;"></input>
+      </div>
+    </form>
+    <button id="home" style="padding: 10px;" onclick="goHome()">Home</button>
+  </div>
+
+  <script>
+    (function() {
+      const info = document.querySelector('#info');
+      const publish = document.querySelector('#publish');
+      const messages = document.querySelector('#messages');
+      const messageBox = document.querySelector('#messageBox');
+
+      let ws = new WebSocket('ws://localhost:8080');
+
+      function init() {
+        ws.onopen = () => {
+          console.log('Connection opened!');
+        }
+        ws.onmessage = ({ data }) => showMessage(data);  
+        ws.onerror = () => {
+          showMessage("No WebSocket connection :(");
+          return ;
+        }
+        ws.onclose = function() {
+          ws.close();
+        }
+      }
+      
+      function showMessage(message) {
+        messageElem = document.createElement('div');
+        messageElem.textContent = message;
+        messages.append(messageElem);
+        messages.scrollTop = messages.scrollHeight;
+        messageBox.value = '';
+      }
+
+      info.onsubmit = function(event) {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const formDataObj = Object.fromEntries(data.entries());
+        ws.send(formDataObj);
+
+        document.getElementById("homepage").style.display = "none"
+        document.getElementById("chatRoom").style.display = "";
+      }
+
+      publish.onsubmit = function() { 
+        ws.send(messageBox.value);
+        showMessage(messageBox.value);
+
+        return false;
+      }
+
+      init();
+    })();
+
+    function goHome() {
+      location.reload();
+    }
+
+  </script>
+
+</body>
+</html>
