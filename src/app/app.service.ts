@@ -2,10 +2,9 @@ import { Injectable } from "@angular/core";
 import { Router } from "@angular/router";
 import { HeaderService } from "./header/header.service";
 
-// Azure IP: 20.86.40.98
 @Injectable({ providedIn: 'root' })
 export class AppService {
-    public ws: WebSocket = new WebSocket('ws://20.86.40.98:8080');
+    public ws: WebSocket = new WebSocket('ws://localhost:8080');
     private _filters: string = '';
     public loaded: boolean = false;
     public state: string = 'default';
@@ -38,7 +37,7 @@ export class AppService {
     reconnect(): void {
         this.sendToServer(JSON.stringify({ disconnected: true }));
         this.ws.close();
-        this.ws = new WebSocket('ws://20.86.40.98:8080');
+        this.ws = new WebSocket('ws://localhost:8080');
         this.ws.onopen = () => {
             console.log('Connection reopened!');
             this.sendToServer(this.filters);
