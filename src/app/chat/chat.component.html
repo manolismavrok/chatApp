@@ -1,0 +1,29 @@
+<html ng-app="chatApp">
+
+<body>
+    <div class="chatRoom">
+        <div class="status">
+            <div *ngIf="!this.paired"></div>
+            <div class="partner" *ngIf="this.paired">Partner</div>
+            <div class="searching" [innerText]="searching$|async"></div>
+            <div class="you" *ngIf="this.paired">You</div>
+            <div *ngIf="!this.paired"></div>
+        </div>
+        <div #messages class="messages" [innerHtml]="messages$|async" [scrollTop]="messages.scrollHeight"></div>
+        <span class="typing" [hidden]=!typingMessage>Partner is typing</span>
+        <form (ngSubmit)="onSubmit(message.value); message.value = ''">
+            <div class="messages-footer">
+                <input #message class="messageBox" type="text" placeholder="Type your message here"
+                    [disabled]="messageBox$|async" (input)="inputEvent(false)" />
+                <button class="send" type="submit" [disabled]="send$|async">
+                    <i class="material-icons-round send"></i>
+                </button>
+            </div>
+        </form>
+        <button class="next" id="next" (click)="nextPartner()" [innerText]="next$|async">Next
+            (Esc)</button>
+        <button class="home" id="home" (click)="toLobby()">Home</button>
+    </div>
+</body>
+
+</html>

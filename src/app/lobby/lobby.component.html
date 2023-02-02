@@ -1,0 +1,105 @@
+<html>
+
+<body>
+  <div class="filters">
+    <span class="warningMessage" *ngIf="hasWarning()"><i
+        class="material-icons-round warning"></i>{{warningMessage}}</span>
+    <form #f="ngForm" (ngSubmit)="onSubmit(f)">
+      <table>
+        <tr>
+          <th class="guide" colspan="2">Choose filters</th>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <svg class="bubbles" version="1.0" style="pointer-events: none;" width="100%" height="30px"
+              viewBox="0 0 1280.000000 1044.000000" preserveAspectRatio="xMidYMid meet">
+              <g transform="translate(0.000000,1044.000000) scale(0.100000,-0.100000)" fill="#7E57C2" stroke="none">
+                <path d="M1603 10429 c-842 -98 -1500 -759 -1592 -1601 -15 -130 -15 -2059 -1
+  -2183 50 -429 233 -802 542 -1100 136 -132 262 -223 420 -305 l118 -61 2 -971
+  3 -972 800 894 800 893 6 1016 c6 1085 6 1089 59 1366 93 481 337 969 674
+  1347 166 187 348 344 565 489 298 199 657 349 1004 420 263 53 234 52 1416 58
+  l1104 6 -51 61 c-301 362 -728 592 -1194 643 -118 13 -4564 13 -4675 0z" />
+                <path d="M5280 8974 c-592 -80 -1127 -403 -1475 -889 -182 -255 -318 -576
+  -369 -875 -35 -202 -37 -326 -33 -1730 4 -1528 0 -1445 68 -1707 196 -764 800
+  -1365 1564 -1558 271 -68 153 -65 2464 -65 l2086 0 944 -1068 c519 -587 948
+  -1068 952 -1070 5 -2 9 515 9 1155 l0 1159 70 31 c38 17 117 59 175 94 563
+  335 939 892 1042 1543 17 102 18 226 18 1576 0 1364 -1 1473 -18 1579 -153
+  967 -903 1699 -1871 1826 -103 13 -441 15 -2819 14 -2273 -1 -2719 -3 -2807
+  -15z" />
+              </g>
+            </svg>
+          </td>
+        </tr>
+        <tr>
+          <th>You</th>
+          <th>Partner</th>
+        </tr>
+        <tr>
+          <td>
+            <select [(ngModel)]="myGender" name="myGender"
+              [style.border]="validationError.myGender ? '4px solid #F50057' : ''" ngModel required>
+              <option value="" disabled selected hidden>Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </td>
+          <td>
+            <select [(ngModel)]=partnerGender name="partnerGender"
+              [style.border]="validationError.partnerGender ? '4px solid #F50057' : ''" ngModel required>
+              <option value="" disabled selected hidden>Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Any">Any</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <button class="dec" (click)="ageDec()">-</button>
+            <input #myAge class="myAge" name="myAge" type="tel" placeholder="Age" required maxlength="2"
+              pattern="[0-9]*" [style.border]="validationError.myAge ? '4px solid #F50057' : ''"
+              (keydown)="ageKeyHandler($event)" (focus)="onFocus(myAge)">
+            <button class="inc" (click)="ageInc()">+</button>
+          </td>
+          <td>
+            <select [(ngModel)]=partnerAge name="partnerAge"
+              [style.border]="validationError.partnerAge ? '4px solid #F50057' : ''" ngModel required>
+              <option value="" disabled selected hidden>Age</option>
+              <option value="18-24">18-24</option>
+              <option value="25-29">25-29</option>
+              <option value="30-34">30-34</option>
+              <option value="35-39">35-39</option>
+              <option value="40-44">40-44</option>
+              <option value="45-49">45-49</option>
+              <option value="50-59">50-59</option>
+              <option value="60+">60+</option>
+              <option value="Any">Any</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div class="country">
+              <label for="partnerCountry">Country</label>
+              <select [(ngModel)]=partnerCountry name="partnerCountry" ngModel required>
+                <option value="Any">Any</option>
+                <option value="Greece">Greece</option>
+                <option value="France">France</option>
+                <option value="Germany">Germany</option>
+                <option value="Italy">Italy</option>
+                <option value="Spain">Spain</option>
+                <option value="Turkey">Turkey</option>
+                <option value="United States">United States</option>
+              </select>
+            </div>
+            <div class="submit">
+              <input class="submit" type="submit" value="Chat Now!">
+            </div>
+          </td>
+        </tr>
+      </table>
+    </form>
+  </div>
+</body>
+
+</html>

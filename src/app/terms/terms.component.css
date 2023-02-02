@@ -1,0 +1,19 @@
+html,
+body {
+    height: inherit;
+    padding-bottom: 50px;
+}
+
+h1 {
+    color: #FFA726;
+}
+
+a {
+    text-decoration: none;
+    color: #FFA726;
+}
+
+a:hover {
+    text-decoration: underline;
+    color: #FFB74D;
+}

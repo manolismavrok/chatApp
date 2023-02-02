@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/6ac65364-e828-41c9-905c-79db7eea0c91/AppServices/subscriptions/6ac65364-e828-41c9-905c-79db7eea0c91/resourceGroups/chatnow-server-rg/providers/Microsoft.Web/sites/chatnow-server",
+    "appService.deploySubpath": "."
+}

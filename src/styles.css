@@ -1,1 +1,139 @@
 /* You can add global styles to this file, and also import other style files */
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-size: 18px;
+}
+
+input {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--purple-1);
+    border-color: var(--purple-1);
+    color: var(--text-color);
+    border-radius: 8px;
+    border-width: 0px;
+    font-size: 20px;
+    padding: 15px;
+    text-align: center;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+input:hover {
+    background-color: var(--purple-2);
+    border-color: var(--purple-2);
+}
+
+input:focus {
+    background-color: var(--purple-1);
+    border-color: var(--purple-1);
+    outline: 0px;
+}
+
+select {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--orange-1);
+    color: var(--gray-1);
+    font-weight: 600;
+    font-size: 18px;
+    border: 4px solid var(--orange-1);
+    border-radius: 8px;
+    text-align-last: center;
+}
+
+select:hover {
+    background-color: var(--orange-2);
+    border-color: var(--orange-2);
+}
+
+select:focus {
+    background-color: var(--orange-1);
+    border-color: var(--orange-1);
+    outline: 0px;
+}
+
+select:invalid {
+    color: var(--gold-1);
+}
+
+option {
+    font-family: 'Roboto', sans-serif;
+    color: var(--gray-1);
+    font-weight: 600;
+}
+
+label {
+    font-family: 'Roboto', sans-serif;
+    display: block;
+    font-size: 20px;
+    padding: 3px 0 3px 0;
+}
+
+.disable-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    border-radius: 10px;
+    background: var(--gray-1);
+    box-shadow: 0 0 1px 1px #464646, inset 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: linear-gradient('to left', #3e3e3e, #111, #000);
+    box-shadow: inset 0 0 1px 1px #646464;
+}
+
+:root {
+    --gray-1: #212121;
+    --gray-2: #292929;
+    --gray-3: #464646;
+    --gray-4: #9E9E9E;
+    --gray-5: #BDBDBD;
+    --gray-6: #EEEEEE;
+    --gray-7: #FAFAFA;
+    --green-1: #D4E157;
+    --pink-1: #F50057;
+    --pink-2: #FF4081;
+    --purple-1: #5E35B1;
+    --purple-2: #7E57C2;
+    --orange-1: #FFA726;
+    --orange-2: #FFB74D;
+    --gold-1: #6e4e2a;
+    --background-color: var(--gray-1);
+    --chat-room_background-color: var(--gray-2);
+    --chat-room_border-color: var(--gray-3);
+    --chat-room_partner-color: var(--gray-1);
+    --chat-room_you-color: var(--gray-6);
+    --text-color: var(--gray-6);
+    --footer-text-color: var(--gray-4);
+    --footer-text-color-hover: var(--gray-5);
+    --online-users-color: var(--green-1);
+}

@@ -1,0 +1,29 @@
+html,
+body {
+    height: inherit;
+    width: 100%;
+
+}
+
+footer {
+    position: fixed;
+    text-align: center;
+    color: var(--footer-text-color);
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 15px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+}
+
+a {
+    text-decoration: none;
+    color: var(--footer-text-color);
+}
+
+a:hover {
+    text-decoration: underline;
+    color: var(--footer-text-color-hover);
+}
