@@ -4,14 +4,12 @@ const wss = new WebSocket.Server({ port })
 const clients = new Map();
 const connections = new Map(); // Monitors connections coming from the same IP
 const connectionsThreshold = 5; // Number of maximum connections allowed from the same IP
-const groups = new Map();
 const recentMatches = new Map();
 const clock = 1000 // 1 second
-const matchesTimeout = 30000; // 30 seconds
 const usersOnlineClock = 1000; // 1 second
-const genders = ['Male', 'Female'];
-const ageGroups = ['18-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50-59', '60+'];
-const countries = ['Greece', 'France', 'Germany', 'Italy', 'Spain', 'Turkey', 'United States'];
+const maleGroup = {};
+const femaleGroup = {};
+const otherGroup = {};
 
 wss.on('connection', function connection(ws, req) {
     let client = {
@@ -19,18 +17,17 @@ wss.on('connection', function connection(ws, req) {
         sessionId: null,
         ws: ws,
         filtered: false,
+        paired: false,
         age: null,
         gender: null,
         country: null,
-        partnerAge: null,
-        partnerGender: null,
-        partnerCountry: null,
+        proxyCountry: null,
+        clientGroup: null,
+        partnerGroup: null,
         timeouts: []
     }
     clients.set(client.id, client.ws);
     let wsClient = clients.get(client.id);
-    let clientGroups = groupify(client); // Group users based on country, gender and age. Returns group names.
-    let partnerGroup = predictPartnerGroup(client);
 
     // Check if client has performed too many connections.
     checkConnections();
@@ -39,7 +36,7 @@ wss.on('connection', function connection(ws, req) {
     clientsOnline(wsClient);
 
     // On Message (Listens in lobby)
-    wsClient.on('message', function applyFilters(data) {
+    wsClient.on('message', function applyFilters(data) {        
         client = filterUser(client, data); // Updates client with the provided filters.
     })
 
@@ -49,9 +46,8 @@ wss.on('connection', function connection(ws, req) {
             wsClient.close();
         }
         clients.delete(client.id);
-        clientGroups.forEach((clientGroup) => {
-            groups.get(clientGroup).splice(groups.get(clientGroup).indexOf(client), 1);
-        });
+        removeClientFromGroup(client, getGroup(client.country, client.clientGroup));
+        removeClientFromGroup(client, getGroup(client.proxyCountry, client.clientGroup));
         reclock(client);
         deleteConnection(req.socket.remoteAddress);
 
@@ -72,8 +68,6 @@ wss.on('connection', function connection(ws, req) {
 
     function comms() {
         wsClient = clients.get(client.id);
-        clientGroups = groupify(client);
-        partnerGroup = predictPartnerGroup(client);
         let clientDisconnected = false;
         let partnerDisconnected = false;
         if (!recentMatches.has(client.sessionId)) {
@@ -87,56 +81,37 @@ wss.on('connection', function connection(ws, req) {
          * Triggers every second, as described by the global 'clock' variable
          * used in the 'keepSearching()' method.
          */
-        function findPartner() {
+        function findPartner() {     
+            groupify(client);  
             checkOverflow(client); // Keep track of client.timeouts
-
-            if (groups.get(partnerGroup) === undefined) { // Case group does not exist yet, until a user is assigned to the particular partnerGroup.
+            if (getGroup(client.country, client.partnerGroup) === undefined) { // Case group does not exist
                 console.log('1');
                 keepSearching();
-            } else {
-                // Case client is also in partnerGroup, remove him to avoid be chosen as partner
-                if (groups.get(partnerGroup).includes(client)) {
-                    groups.get(partnerGroup).splice(groups.get(partnerGroup).indexOf(client), 1);
-                }
-                if (groups.get(partnerGroup).length === 0) {
-                    console.log('2');
+            } else {             
+                if (getGroup(client.country, client.partnerGroup).length === 0) { // No users online
+                    console.log('2');                        
                     keepSearching();
                 } else {
-                    // Select random user and remove him from the group
-                    let partner = groups.get(partnerGroup).splice(Math.floor(Math.random() * groups.get(partnerGroup).length), 1)[0];
-                    checkOverflow(partner);
-                    if (partner.id === client.id) { // Case client is assigned an id already in use (almost impossible).
+                    // Find partner closest in age and remove him from the group                     
+                    let partner = findClosestClient(getGroup(client.country, client.partnerGroup), client, 'age');                  
+                    removeClientFromGroup(partner, getGroup(client.country, client.partnerGroup));
+                    removeClientFromGroup(partner, getGroup(client.proxyCountry, client.partnerGroup));
+                    checkOverflow(partner);        
+                    if (partner.id === client.id) { // Case client is assigned an id already in use (almost impossible) or connects with himself.                      
                         console.log('3');
-                        keepSearching(partner);
-                    } else {
-                        let timestamp = Date.now();
-                        if (recentlyMatched(partner, timestamp)) {
-                            console.log('4');
-                            keepSearching(partner);
-                        } else {
-                            reclock(client);  // Clear all timeouts on user.
+                        getGroup(client.country, client.partnerGroup).push(partner);                        
+                        keepSearching();
+                    } else {   
+                        if(client.paired || partner.paired) {
+                            console.log('4')
+                            keepSearching();
+                        } else {                     
+                            reclock(client); // Clear all timeouts on user.
                             reclock(partner);
                             connect(partner); // Establish event listeners for client and partner in chat room.
-                        }
+                        }                 
                     }
                 }
-            }
-        }
-
-        /**
-         * Returns true if was recently matched with this partner the last 'matchesTimeout' seconds.
-         * DOES NOT WORK PROPERLY AND CAUSES SERVER CRASH UNDER LOAD. NEEDS FIXING.          
-         */
-        function recentlyMatched(partner, timestamp) {
-            if (recentMatches.get(client.sessionId).get(partner.sessionId) === undefined &&
-                recentMatches.get(partner.sessionId).get(client.sessionId) === undefined) {
-                return false;
-            }
-            if (recentMatches.get(client.sessionId).get(partner.sessionId) === undefined) {
-                return timestamp - recentMatches.get(partner.sessionId).get(client.sessionId) <= matchesTimeout;
-            }
-            if (recentMatches.get(partner.sessionId).get(client.sessionId) === undefined) {
-                return timestamp - recentMatches.get(client.sessionId).get(partner.sessionId) <= matchesTimeout;
             }
         }
 
@@ -145,13 +120,7 @@ wss.on('connection', function connection(ws, req) {
          * Re-examines the group names (Is included inside 'keepSearching()' method, because 
          * is needed on each if statement of 'findPartner' or else doesn't work, not sure why is that).
          */
-        function keepSearching(partner) {
-            clientGroups = groupify(client);
-            partnerGroup = predictPartnerGroup(client);
-            if (arguments.length !== 0) {
-                let partnerGroups = groupify(partner);
-                partnerGroup = partnerGroups.splice(Math.floor(Math.random() * partnerGroups.length), 1)[0];
-            }
+        function keepSearching() {
             client.timeouts.push(setTimeout(findPartner, clock));
         }
 
@@ -159,15 +128,16 @@ wss.on('connection', function connection(ws, req) {
          * Establish connection to partner with new listeners pertaining to the chat room.
          */
         function connect(partner) {
+            client.paired = true
+            partner.paired = true
             let wsPartner = clients.get(partner.id);
             if (wsPartner === undefined) {
-                keepSearching(partner);
+                keepSearching();
                 return;
-            }
+            }            
 
-            clientGroups.forEach((clientGroup) => {
-                groups.get(clientGroup).splice(groups.get(clientGroup).indexOf(client), 1); // Start by removing client from his groups
-            });
+            removeClientFromGroup(client, getGroup(client.country, client.clientGroup)); // Start by removing client from his groups
+            removeClientFromGroup(client, getGroup(client.proxyCountry, client.clientGroup));
 
             // Remove lobby listeners
             wsClient.removeAllListeners();
@@ -182,13 +152,12 @@ wss.on('connection', function connection(ws, req) {
             const clientInfo = { gender: client.gender, age: client.age, country: client.country };
             const partnerInfo = { gender: partner.gender, age: partner.age, country: partner.country };
             if (wsClient.readyState === WebSocket.OPEN && wsPartner.readyState === WebSocket.OPEN &&
-                clients.has(partner.id) && clients.has(client.id)) {
+                clients.has(partner.id) && clients.has(client.id)) {                
                 wsClient.send(JSON.stringify(partnerInfo));
                 wsPartner.send(JSON.stringify(clientInfo));
             }
-
             // On Message
-            wsClient.on('message', function clientIncoming(data) {
+            wsClient.on('message', function clientIncoming(data) {    
                 let info = JSON.parse(data);
                 if (info.hasOwnProperty('disconnected')) {
                     skip('client');
@@ -234,33 +203,6 @@ wss.on('connection', function connection(ws, req) {
                 closeSocket('partner');
             })
 
-            // Store new matches as to avoid them and free older ones.
-            function manageRecentMatches(timestamp) {
-                if (recentMatches.get(client.sessionId) === undefined ||
-                    recentMatches.get(partner.sessionId) == undefined) {
-                    return;
-                }
-
-                recentMatches.get(client.sessionId).forEach((matchTimestamp, sessionId) => {
-                    if (timestamp - matchTimestamp > matchesTimeout) {
-                        recentMatches.get(client.sessionId).delete(sessionId);
-                    }
-                })
-                recentMatches.get(partner.sessionId).forEach((matchTimestamp, sessionId) => {
-                    if (timestamp - matchTimestamp > matchesTimeout) {
-                        recentMatches.get(partner.sessionId).delete(sessionId);
-                    }
-                })
-
-                if (!recentMatches.get(client.sessionId).has(partner.sessionId)) {
-                    recentMatches.get(client.sessionId).set(partner.sessionId, timestamp);
-                    console.log("Recent match: " + recentMatches.get(client.sessionId));
-                }
-                if (!recentMatches.get(partner.sessionId).has(client.sessionId)) {
-                    recentMatches.get(partner.sessionId).set(client.sessionId, timestamp);
-                    console.log("Recent match: " + recentMatches.get(partner.sessionId));
-                }
-            }
 
             // Prepare for socket closure
             function closeSocket(user) {
@@ -268,16 +210,14 @@ wss.on('connection', function connection(ws, req) {
                 deleteConnection(req.socket.remoteAddress);
                 switch (user) {
                     case 'client':
-                        console.log('Closing client: ' + client.id);
+                        console.log('Closing client: ' + client.id);                        
                         if (wsClient.readyState === WebSocket.OPEN) {
                             wsClient.close();
                         }
                         clients.delete(client.id);
-                        manageRecentMatches(Date.now());
                         recentMatches.delete(client.sessionId);
-                        clientGroups.forEach((clientGroup) => {
-                            groups.get(clientGroup).splice(groups.get(clientGroup).indexOf(client), 1);
-                        });
+                        removeClientFromGroup(client, getGroup(client.country, client.clientGroup));
+                        removeClientFromGroup(client, getGroup(client.proxyCountry, client.clientGroup));                                                
                         break;
                     case 'partner':
                         console.log('Closing partner: ' + partner.id);
@@ -285,11 +225,12 @@ wss.on('connection', function connection(ws, req) {
                             wsPartner.close();
                         }
                         clients.delete(partner.id);
-                        manageRecentMatches(Date.now());
                         recentMatches.delete(partner.sessionId);
-                        groups.get(partnerGroup).splice(groups.get(partnerGroup).indexOf(partner), 1);
+                        removeClientFromGroup(partner, getGroup(client.country, client.partnerGroup));
+                        removeClientFromGroup(partner, getGroup(client.proxyCountry, client.partnerGroup));
                         break;
                 }
+                console.log(maleGroup['Greece'].length)
             }
 
             // Skips partner
@@ -299,16 +240,17 @@ wss.on('connection', function connection(ws, req) {
                         if (wsPartner.readyState === WebSocket.OPEN && clients.has(partner.id) && !partnerDisconnected) {
                             wsPartner.send(JSON.stringify({ disconnected: true }));
                             clientDisconnected = true;
+                            client.paired = false;
                         }
                         break;
                     case 'partner':
                         if (wsClient.readyState === WebSocket.OPEN && clients.has(client.id) && !clientDisconnected) {
                             wsClient.send(JSON.stringify({ disconnected: true }));
                             partnerDisconnected = true;
+                            partner.paired = false;
                         }
                         break;
                 }
-                manageRecentMatches(Date.now());
             }
 
         }
@@ -381,211 +323,58 @@ Array.prototype.peek = function () {
 };
 
 /**
- * Generates a group name based on country, gender and age. If group name already exists,
- * appends user at the particular group. Else, creates new group with new name and
- * instantiates with this user id.
+ * Group users based on country and gender.
  */
 function groupify(user) {
-    let ageGroup = ageToGroup(user.age);
-    let groupNames = [];
-    let trails = [];
-    let groupName = user.country + '_' + user.gender + '_' + ageGroup + '_';
-    trails.push(groupName);
-    if (user.partnerCountry === 'Any') {
-        countries.forEach((country) => {
-            groupName = trails.peek() + country + '_';
-            trails.push(groupName);
-            if (user.partnerGender === 'Any') {
-                genders.forEach((gender) => {
-                    groupName = trails.peek() + gender + '_';
-                    trails.push(groupName);
-                    if (user.partnerAge === 'Any') {
-                        ageGroups.forEach((group) => {
-                            groupName = trails.peek() + group;
-                            groupNames.push(groupName);
-                        });
-                        trails.pop();
-                    } else {
-                        groupName = trails.pop() + user.partnerAge;
-                        groupNames.push(groupName);
-                    }
-                });
-            } else {
-                groupName = trails.peek() + user.partnerGender + '_';
-                trails.push(groupName);
-                if (user.partnerAge === 'Any') {
-                    ageGroups.forEach((group) => {
-                        groupName = trails.peek() + group;
-                        groupNames.push(groupName);
-                    });
-                    trails.pop();
-                } else {
-                    groupName = trails.pop() + user.partnerAge;
-                    groupNames.push(groupName);
-                }
-            }
-            trails.pop();
-        });
-    } else {
-        groupName = user.partnerCountry + '_' + user.gender + '_' + ageGroup + '_' + user.partnerCountry + '_';
-        trails.push(groupName);
-        if (user.partnerGender === 'Any') {
-            genders.forEach((gender) => {
-                groupName = trails.peek() + gender + '_';
-                trails.push(groupName);
-                if (user.partnerAge === 'Any') {
-                    ageGroups.forEach((group) => {
-                        groupName = trails.peek() + group;
-                        groupNames.push(groupName);
-                    });
-                    trails.pop();
-                } else {
-                    groupName = trails.pop() + user.partnerAge;
-                    groupNames.push(groupName);
-                }
-            });
-        } else {
-            groupName = trails.peek() + user.partnerGender + '_';
-            trails.push(groupName);
-            if (user.partnerAge === 'Any') {
-                ageGroups.forEach((group) => {
-                    groupName = trails.peek() + group;
-                    groupNames.push(groupName);
-                });
-                trails.pop();
-            } else {
-                groupName = trails.pop() + user.partnerAge;
-                groupNames.push(groupName);
-            }
-        }
-    }
+    let country = user.country
 
-    groupNames.forEach((groupName) => {
-        if (groups.has(groupName)) {
-            if (!groups.get(groupName).includes(user)) {
-                groups.get(groupName).push(user);
-            }
-        } else {
-            groups.set(groupName, [user]);
-        }
-    });
+    if( !(country in maleGroup) ) maleGroup[country] = [] // Initialize group  
+    if( !(country in femaleGroup) ) femaleGroup[country] = [] // Initialize group
+    if( !(country in otherGroup) ) otherGroup[country] = [] // Initialize group
 
-    return groupNames;
+    // Check country availability to determine if proxy country should be prefered
+    if(maleGroup[country].length + femaleGroup[country].length + otherGroup[country].length === 1) {
+        var keys = Object.keys(maleGroup);
+        delete keys[country]     
+        user.proxyCountry = keys[keys.length * Math.random() << 0];
+        country = user.proxyCountry
+    }   
+
+    switch(user.gender) {
+        case 'Male':               
+            user.clientGroup = 'maleGroup'            
+            user.partnerGroup = calcPartnerGroup(user);
+            insertSorted(maleGroup[country], user, 'age');  
+            break;               
+        case 'Female':            
+            user.clientGroup = 'femaleGroup'
+            user.partnerGroup = calcPartnerGroup(user);
+            insertSorted(femaleGroup[country], user, 'age');
+            break;
+        case 'Other':
+            user.clientGroup = 'otherGroup'
+            user.partnerGroup = calcPartnerGroup(user);
+            insertSorted(otherGroup[country], user, 'age');     
+            break;       
+        default:            
+            return null
+      }      
+
 }
 
-/**
- * Predicts partner group based on client's filters.
- */
-function predictPartnerGroup(user) {
-    let groupNames = [];
-    let trails = [];
-    let validGroups = [];
-    let groupName = '';
-    trails.push(groupName);
-    let userAge = ageToGroup(user.age);
-    if (user.partnerCountry === 'Any') {
-        countries.forEach((country) => {
-            groupName = trails.peek() + country + '_';
-            trails.push(groupName);
-            if (user.partnerGender === 'Any') {
-                genders.forEach((gender) => {
-                    groupName = trails.peek() + gender + '_';
-                    trails.push(groupName);
-                    if (user.partnerAge === 'Any') {
-                        ageGroups.forEach((group) => {
-                            groupName = trails.peek() + group + '_' + user.country + '_' + user.gender + '_' + userAge;
-                            groupNames.push(groupName);
-                        });
-                        trails.pop();
-                    } else {
-                        groupName = trails.pop() + user.partnerAge + '_' + user.country + '_' + user.gender + '_' + userAge;
-                        groupNames.push(groupName);
-                    }
-                });
-            } else {
-                groupName = trails.peek() + user.partnerGender + '_';
-                trails.push(groupName);
-                if (user.partnerAge === 'Any') {
-                    ageGroups.forEach((group) => {
-                        groupName = trails.peek() + group + '_' + user.country + '_' + user.gender + '_' + userAge;
-                        groupNames.push(groupName);
-                    });
-                    trails.pop();
-                } else {
-                    groupName = trails.pop() + user.partnerAge + '_' + user.country + '_' + user.gender + '_' + userAge;
-                    groupNames.push(groupName);
-                }
-            }
-            trails.pop();
-        });
-    } else {
-        groupName = trails.peek() + user.partnerCountry + '_';
-        trails.push(groupName);
-        if (user.partnerGender === 'Any') {
-            genders.forEach((gender) => {
-                groupName = trails.peek() + gender + '_';
-                trails.push(groupName);
-                if (user.partnerAge === 'Any') {
-                    ageGroups.forEach((group) => {
-                        groupName = trails.peek() + group + '_' + user.partnerCountry + '_' + user.gender + '_' + userAge;
-                        groupNames.push(groupName);
-                    });
-                    trails.pop();
-                } else {
-                    groupName = trails.pop() + user.partnerAge + '_' + user.partnerCountry + '_' + user.gender + '_' + userAge;
-                    groupNames.push(groupName);
-                }
-            });
-        } else {
-            groupName = trails.peek() + user.partnerGender + '_';
-            trails.push(groupName);
-            if (user.partnerAge === 'Any') {
-                ageGroups.forEach((group) => {
-                    groupName = trails.peek() + group + '_' + user.partnerCountry + '_' + user.gender + '_' + userAge;
-                    groupNames.push(groupName);
-                });
-                trails.pop();
-            } else {
-                groupName = trails.pop() + user.partnerAge + '_' + user.partnerCountry + '_' + user.gender + '_' + userAge;
-                groupNames.push(groupName);
-            }
-        }
-    }
-
-    groupNames.forEach((groupName) => {
-        let group = groups.get(groupName);
-        if (group !== undefined) {
-            if (group.length > 0) {
-                validGroups.push(groupName);
-            }
-        }
-    });
-
-    return validGroups.splice(Math.floor(Math.random() * validGroups.length), 1)[0];
-}
-
-/**
- * Generate age group from age.
- */
-function ageToGroup(age) {
-    const ageGroups = ['18-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50-59', '60+'];
-    switch (true) {
-        case age >= 18 && age <= 24:
-            return ageGroups[0];
-        case age >= 25 && age <= 29:
-            return ageGroups[1];
-        case age >= 30 && age <= 34:
-            return ageGroups[2];
-        case age >= 35 && age <= 39:
-            return ageGroups[3];
-        case age >= 40 && age <= 44:
-            return ageGroups[4];
-        case age >= 45 && age <= 49:
-            return ageGroups[5];
-        case age >= 50 && age <= 59:
-            return ageGroups[6];
-        case age >= 60:
-            return ageGroups[7];
+function calcPartnerGroup(user) {    
+    switch(user.clientGroup) {
+        case 'maleGroup':            
+            if(femaleGroup[user.country].length > 0) return 'femaleGroup'      
+            return Math.random() > 0.5 ? 'maleGroup' : 'otherGroup'
+        case 'femaleGroup':            
+            if(maleGroup[user.country].length > 0) return 'maleGroup'      
+            return Math.random() > 0.5 ? 'femaleGroup' : 'otherGroup'
+        case 'otherGroup':            
+            if(otherGroup[user.country].length > 0) return 'otherGroup'      
+            return Math.random() > 0.5 ? 'maleGroup' : 'femaleGroup'
+        default:
+            return null
     }
 }
 
@@ -594,21 +383,18 @@ function ageToGroup(age) {
  * When filters are applied, parses them and returns filtered client.
  */
 function filterUser(client, data) {
-    if (!client.filtered) {
+    if (!client.filtered) {        
         let info = JSON.parse(data);
 
         client.filtered = true;
         client.sessionId = info.sessionId;
         client.gender = info.myGender;
         client.age = info.myAge;
-        client.country = info.myCountry;
-        client.partnerGender = info.partnerGender;
-        client.partnerAge = info.partnerAge;
-        client.partnerCountry = info.partnerCountry;
-
+        client.country = info.country;
+        
         return client;
     }
-
+    
     return client;
 }
 
@@ -635,6 +421,57 @@ function checkOverflow(user) {
             recentMatches.delete(user.sessionId);
         }
     }
+}
+
+/**
+ * Insert object to array, but sorted based on a key
+ */
+function insertSorted(array, obj, key) {
+    // In case obj already exists
+    if(array.includes(obj)) return array;
+
+    // Find the correct index to insert the object
+    let index = array.findIndex(item => item[key] > obj[key]);
+    
+    // If no such index is found, push the object at the end
+    if (index === -1) {
+        array.push(obj);
+    } else {
+        array.splice(index, 0, obj);
+    }
+    
+    return array;
+}
+
+function findClosestClient(array, client, key) {
+    if (array.length === 0) return null;
+
+    // Avoid users of same group connecting with themselves, when there are only clients who share their age
+    if(client.clientGroup === client.partnerGroup && array.length > 1) {
+        removeClientFromGroup(client, array);
+    }
+
+    return array.reduce((closest, current) => {
+        return Math.abs(current[key] - client.age) < Math.abs(closest[key] - client.age) ? current : closest;
+    });
+}
+
+function getGroup(country, group) {
+    switch(group) {
+        case 'maleGroup':
+            return maleGroup[country];            
+        case 'femaleGroup': 
+            return femaleGroup[country];
+        case 'otherGroup':
+            return otherGroup[country];
+        default:
+            return null
+    }
+}
+
+function removeClientFromGroup(client, group) {
+    if(group != null && group.includes(client))    
+        group.splice(group.indexOf(client), 1);   
 }
 
 console.log('WebSocket Server is listening on port ' + port + '!')

@@ -19,6 +19,7 @@ footer {
 }
 
 a {
+    cursor: pointer;
     text-decoration: none;
     color: var(--footer-text-color);
 }

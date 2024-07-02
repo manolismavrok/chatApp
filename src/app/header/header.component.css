@@ -43,6 +43,7 @@ svg.dice {
 }
 
 .burger-menu {
+    cursor: pointer;
     position: absolute;
     right: 0;
     top: 0;

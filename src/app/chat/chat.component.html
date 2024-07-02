@@ -5,7 +5,7 @@
         <div class="status">
             <div *ngIf="!this.paired"></div>
             <div class="partner" *ngIf="this.paired">Partner</div>
-            <div class="searching" [innerText]="searching$|async"></div>
+            <div class="searching" [innerHTML]="searching$|async"></div>
             <div class="you" *ngIf="this.paired">You</div>
             <div *ngIf="!this.paired"></div>
         </div>

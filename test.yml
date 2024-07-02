@@ -1,0 +1,20 @@
+#Run with Artillery
+config:
+  target: "ws://localhost:8080"
+  phases:
+    - duration: 30
+      arrivalRate: 333    
+scenarios:
+  - engine: ws
+    flow:
+      - send: {
+        myGender: Male,
+        myAge: 18,
+        country: Greece
+      }
+      - loop:
+        - send: {
+          message: "This is a kinda long message to test client failure and server load when dealing with big buffers."
+        }
+        - think: 1
+        count: 30

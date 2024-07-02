@@ -12,28 +12,23 @@ import { HeaderService } from '../header/header.service';
 export class LobbyComponent implements AfterViewInit {
   myGender: string | null = '';
   @ViewChild('myAge') myAge!: ElementRef;
-  myCountry: string | null = '';
-  partnerGender: string | null = '';
-  partnerAge: string | null = '';
-  partnerCountry: string | null = '';
+  country: string | null = '';
   initialized: boolean = false;
   validationError = {
     myGender: false,
-    partnerGender: false,
-    myAge: false,
-    partnerAge: false,
-    partnerCountry: false
+    myAge: false
   }
   warningMessage: string = ""
   apiKey: string = "c73bd3214f964be282d1a6987b3c3fd4";
 
   constructor(private router: Router, private appService: AppService, private headerService: HeaderService) {
     this.myGender = this.isNull(localStorage.getItem('myGender')) ? '' : localStorage.getItem("myGender");
-    fetch(`https://api.ipgeolocation.io/ipgeo?apiKey=${this.apiKey}`).then((response) => response.json()).then((data) => this.setCountry(data));
-    //this.setCountry({ country_name: 'Greece' });
-    this.partnerGender = this.isNull(localStorage.getItem('partnerGender')) ? '' : localStorage.getItem("partnerGender");
-    this.partnerAge = this.isNull(localStorage.getItem('partnerAge')) ? '' : localStorage.getItem("partnerAge");
-    this.partnerCountry = this.myCountry;
+    fetch(`https://api.ipgeolocation.io/ipgeo?apiKey=${this.apiKey}`)
+    .then((response) => response.json()).then((data) => this.setCountry(data))
+    .catch((error => {
+      console.error(error)
+      this.setCountry({ country_name: 'random' });
+    }));
   }
 
   ngAfterViewInit(): void {
@@ -45,7 +40,7 @@ export class LobbyComponent implements AfterViewInit {
     if (this.initialized) {
       f.value.sessionId = this.uuidv4();
       f.value.myAge = this.myAge.nativeElement.value;
-      f.value.myCountry = this.myCountry;
+      f.value.country = this.country;
       this.appService.filters = JSON.stringify(f.value);
       if (!this.validateFilters(this.appService.filters)) {
         return false;
@@ -53,8 +48,8 @@ export class LobbyComponent implements AfterViewInit {
       this.appService.sendToServer(this.appService.filters);
       localStorage.setItem('myGender', f.value.myGender);
       localStorage.setItem('myAge', f.value.myAge);
-      localStorage.setItem('partnerGender', f.value.partnerGender);
-      localStorage.setItem('partnerAge', f.value.partnerAge);
+      localStorage.setItem('country', f.value.country);
+      console.log(this.appService.filters);
       this.toChat(this.router);
     }
     return true;
@@ -65,13 +60,8 @@ export class LobbyComponent implements AfterViewInit {
     Object.keys(this.validationError).forEach(key => {
       this.validationError[key as keyof typeof this.validationError] = false;
     });
-    if (body.myGender !== "Male" && body.myGender !== "Female") {
+    if (body.myGender !== "Male" && body.myGender !== "Female" && body.myGender !== "Other") {
       this.validationError.myGender = true;
-      this.warningMessage = "Please select a valid gender"
-      return false;
-    }
-    if (body.partnerGender !== "Male" && body.partnerGender !== "Female" && body.partnerGender !== "Any") {
-      this.validationError.partnerGender = true;
       this.warningMessage = "Please select a valid gender"
       return false;
     }
@@ -93,18 +83,6 @@ export class LobbyComponent implements AfterViewInit {
     if (Number(body.myAge) > 99) {
       this.validationError.myAge = true;
       this.warningMessage = "Please select a valid age"
-      return false;
-    }
-    if (body.partnerAge !== '18-24' && body.partnerAge !== '25-29' && body.partnerAge !== '30-34' &&
-      body.partnerAge !== '35-39' && body.partnerAge !== '40-44' && body.partnerAge !== '45-49' &&
-      body.partnerAge !== '50-59' && body.partnerAge !== '60+' && body.partnerAge !== 'Any') {
-      this.validationError.partnerAge = true;
-      this.warningMessage = "Please select a valid age group"
-      return false;
-    }
-    if (body.partnerCountry === "") {
-      this.validationError.partnerCountry = true;
-      this.warningMessage = "Please select a valid country"
       return false;
     }
     return true;
@@ -171,8 +149,7 @@ export class LobbyComponent implements AfterViewInit {
   }
 
   setCountry(data: { country_name: string }) {
-    this.myCountry = data.country_name;
-    this.partnerCountry = data.country_name;
+    this.country = data.country_name;
   }
 
   isNull(n: any): boolean {

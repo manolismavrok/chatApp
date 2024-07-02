@@ -63,7 +63,8 @@ export class ChatComponent implements OnInit, AfterViewInit {
         this.renderer.setStyle(div, 'border-radius', '8px');
         this.renderer.setStyle(div, 'color', 'var(--chat-room_you-color)');
         this.renderer.setStyle(div, 'background-color', '#5E35B1');
-        this.renderer.setStyle(div, 'padding', '4px');
+        this.renderer.setStyle(div, 'box-shadow', '5px 5px 10px 2px rgba(0,0,0,.2)');
+        this.renderer.setStyle(div, 'padding', '4px 6px 4px 6px');
         this.renderer.setStyle(div, 'margin', '4px');
       }
       if (data.source === 'partner') {
@@ -73,7 +74,8 @@ export class ChatComponent implements OnInit, AfterViewInit {
         this.renderer.setStyle(div, 'border-radius', '8px');
         this.renderer.setStyle(div, 'color', 'var(--chat-room_partner-color)');
         this.renderer.setStyle(div, 'background-color', '#FFA726');
-        this.renderer.setStyle(div, 'padding', '4px');
+        this.renderer.setStyle(div, 'box-shadow', '5px 5px 10px 2px rgba(0,0,0,.2)');
+        this.renderer.setStyle(div, 'padding', '4px 6px 4px 6px');
         this.renderer.setStyle(div, 'margin', '4px');
       }
       this.renderer.appendChild(this.messages.nativeElement, div);
@@ -105,7 +107,6 @@ export class ChatComponent implements OnInit, AfterViewInit {
         this.typing = false;
         this.appService.sendToServer(JSON.stringify({ typing: this.typing }));
       }
-      console.log(this.typing);
     }
   }
 
@@ -190,7 +191,13 @@ export class ChatComponent implements OnInit, AfterViewInit {
       let gender = info.gender;
       let age = info.age;
       let country = info.country;
-      this.searchingEmitter$.next(`You're talking with a ${gender} of age ${age}, in ${country}!`)
+      if(country === undefined) {
+        country = 'random';
+      }
+      this.searchingEmitter$.next(`You're talking with a <b>${gender}</b> of age <b>${age}</b>, in <b>${country}</b>!`)
+      if(gender === 'Other') {
+        this.searchingEmitter$.next(`You're talking with an <b>${gender}</b> of age <b>${age}</b>, in <b>${country}</b>!`)
+      }
       this.messagesEmitter$.next('');
       this.messageBoxEmitter$.next(false);
       this.sendEmitter$.next(false);

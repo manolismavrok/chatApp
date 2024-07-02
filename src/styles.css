@@ -130,7 +130,7 @@ label {
     --background-color: var(--gray-1);
     --chat-room_background-color: var(--gray-2);
     --chat-room_border-color: var(--gray-3);
-    --chat-room_partner-color: var(--gray-1);
+    --chat-room_partner-color: black;
     --chat-room_you-color: var(--gray-6);
     --text-color: var(--gray-6);
     --footer-text-color: var(--gray-4);
